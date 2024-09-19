@@ -1,0 +1,59 @@
+name: Build
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          .\32\
+          .\64\
+          .\cache\
+        key: build
+        restore-keys: build
+
+    - name: Configure project (32-bit)
+      run: cmake -A Win32 -DCPM_SOURCE_CACHE=cache -DBUILD_TESTING=ON -S ./ -B 32/
+
+    - name: Build project (32-bit)
+      run: cmake --build 32/ --config Release
+
+    - name: Run tests (32-bit)
+      run: .\32\test\Release\mempatcher_test.exe
+
+    - name: Upload artifacts (32-bit)
+      uses: actions/upload-artifact@v4
+      with:
+        name: Release (32-bit)
+        path: 32/Release/mempatcher32.dll
+
+    - name: Configure project (64-bit)
+      run: cmake -A x64 -DCPM_SOURCE_CACHE=cache -DBUILD_TESTING=ON -S ./ -B 64/
+
+    - name: Build project (64-bit)
+      run: cmake --build 64/ --config Release
+
+    - name: Run tests (64-bit)
+      run: .\64\test\Release\mempatcher_test.exe
+
+    - name: Upload artifacts (64-bit)
+      uses: actions/upload-artifact@v4
+      with:
+        name: Release (64-bit)
+        path: 64/Release/mempatcher64.dll
+
+    - name: Create release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          32/Release/mempatcher32.dll
+          64/Release/mempatcher64.dll
