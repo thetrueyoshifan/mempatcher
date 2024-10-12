@@ -17,20 +17,6 @@ CPMAddPackage(
     GITHUB_REPOSITORY gabime/spdlog
 )
 
-CPMAddPackage(
-    NAME               zydis
-    GIT_TAG            v4.0.0
-    GITHUB_REPOSITORY  zyantific/zydis
-    OPTIONS            "ZYDIS_MINIMAL_MODE ON" "ZYDIS_FEATURE_ENCODER OFF" "ZYDIS_FEATURE_FORMATTER OFF"
-                       "ZYDIS_FEATURE_AVX512 OFF" "ZYDIS_FEATURE_KNC OFF" "ZYDIS_FEATURE_SEGMENT OFF"
-)
-
-CPMAddPackage(
-    NAME              safetyhook
-    GIT_TAG           v0.4.1
-    GITHUB_REPOSITORY cursey/safetyhook
-)
-
 add_library(${PROJECT_NAME} SHARED
     src/main.cc
     src/util.cc
@@ -40,7 +26,7 @@ add_library(${PROJECT_NAME} SHARED
     res/mempatcher.rc
 )
 
-target_link_libraries(${PROJECT_NAME} spdlog safetyhook)
+target_link_libraries(${PROJECT_NAME} spdlog)
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
 target_precompile_headers(${PROJECT_NAME} PRIVATE src/pch.h)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/macros)

@@ -5,7 +5,7 @@ Drop-in replacement for [mempatch-hook](https://github.com/djhackersdev/bemanito
 
 - Auto-loads any `.mph` files from `autopatch` directory
 - Supports file-based offsets by prefixing addresses with `F+`
-- Uses [loader hooks](https://aixxe.net/2024/09/dll-memory-patching) to ensure patches are applied before entrypoint call
+- Uses loader notifications to ensure patches are applied before entrypoint call
 - Can be loaded ahead of target libraries, will unload after applying patches
 
 ### Usage

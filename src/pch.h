@@ -7,6 +7,5 @@
 #include "ntdll.h"
 
 // vendor
-#include <safetyhook.hpp>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>

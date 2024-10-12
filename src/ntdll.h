@@ -2,18 +2,50 @@
 
 #include <winternl.h>
 
-using SECTION_INHERIT = int;
+auto constexpr LDR_DLL_NOTIFICATION_REASON_LOADED = 1;
+auto constexpr LDR_DLL_NOTIFICATION_REASON_UNLOADED = 2;
 
-NTSTATUS NTAPI NtMapViewOfSection
+typedef struct _LDR_DLL_LOADED_NOTIFICATION_DATA
+{
+    ULONG Flags;
+    PCUNICODE_STRING FullDllName;
+    PCUNICODE_STRING BaseDllName;
+    PVOID DllBase;
+    ULONG SizeOfImage;
+} LDR_DLL_LOADED_NOTIFICATION_DATA, *PLDR_DLL_LOADED_NOTIFICATION_DATA;
+
+typedef struct _LDR_DLL_UNLOADED_NOTIFICATION_DATA
+{
+    ULONG Flags;
+    PCUNICODE_STRING FullDllName;
+    PCUNICODE_STRING BaseDllName;
+    PVOID DllBase;
+    ULONG SizeOfImage;
+} LDR_DLL_UNLOADED_NOTIFICATION_DATA, *PLDR_DLL_UNLOADED_NOTIFICATION_DATA;
+
+typedef union _LDR_DLL_NOTIFICATION_DATA
+{
+    LDR_DLL_LOADED_NOTIFICATION_DATA Loaded;
+    LDR_DLL_UNLOADED_NOTIFICATION_DATA Unloaded;
+} LDR_DLL_NOTIFICATION_DATA, *PLDR_DLL_NOTIFICATION_DATA;
+
+typedef const _LDR_DLL_NOTIFICATION_DATA* PCLDR_DLL_NOTIFICATION_DATA;
+
+typedef VOID (CALLBACK* PLDR_DLL_NOTIFICATION_FUNCTION)
 (
-    _In_        HANDLE           SectionHandle,
-    _In_        HANDLE           ProcessHandle,
-    _Inout_     PVOID           *BaseAddress,
-    _In_        ULONG_PTR        ZeroBits,
-    _In_        SIZE_T           CommitSize,
-    _Inout_opt_ PLARGE_INTEGER   SectionOffset,
-    _Inout_     PSIZE_T          ViewSize,
-    _In_        SECTION_INHERIT  InheritDisposition,
-    _In_        ULONG            AllocationType,
-    _In_        ULONG            Win32Protect
+    ULONG NotificationReason,
+    PCLDR_DLL_NOTIFICATION_DATA NotificationData,
+    PVOID Context
+);
+
+NTSTATUS NTAPI LdrRegisterDllNotification
+(
+    ULONG                          Flags,
+    PLDR_DLL_NOTIFICATION_FUNCTION NotificationFunction,
+    PVOID                          Context,
+    PVOID                          *Cookie
+);
+
+NTSTATUS NTAPI LdrUnregisterDllNotification(
+    PVOID Cookie
 );
