@@ -13,6 +13,7 @@ namespace mempatcher::parser
     {
         addr_type type;
         std::size_t line;
+        std::string file;
         std::string target;
         std::uintptr_t address;
         std::vector<std::uint8_t> on;

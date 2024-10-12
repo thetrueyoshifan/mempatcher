@@ -252,6 +252,8 @@ auto parser::read_file(const std::filesystem::path& path)
             return std::unexpected { parse_error { patch.error(), nline } };
 
         patch->line = nline;
+        patch->file = path.filename().string();
+
         result.push_back(std::move(*patch));
     }
 
