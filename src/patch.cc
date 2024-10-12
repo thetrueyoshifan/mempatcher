@@ -84,15 +84,24 @@ auto compare_data(std::uint8_t* target, const parser::patch& patch)
     if (patch.off.empty())
         return true;
 
-    // TODO: memory might not be readable, call VirtualProtect here?
-    if (std::memcmp(target, patch.off.data(), patch.off.size()) != 0)
+    __try
     {
-        spdlog::error("Failed to validate data from '{}':{} at {} 0x{:X}",
+        if (std::memcmp(target, patch.off.data(), patch.off.size()) != 0)
+        {
+            spdlog::error("Failed to validate data from '{}':{} at {} 0x{:X}",
+                patch.file, patch.line, patch.type_name(), patch.address);
+            spdlog::error("     expected data [{}]: {:02X}",
+                patch.off.size(), fmt::join(patch.off, " "));
+            spdlog::error("    data in memory [{}]: {:02X}",
+                patch.off.size(), fmt::join(std::span { target, patch.off.size() }, " "));
+
+            return false;
+        }
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        spdlog::error("Failed to read data from '{}':{} at {} 0x{:X}",
             patch.file, patch.line, patch.type_name(), patch.address);
-        spdlog::error("     expected data [{}]: {:02X}",
-            patch.off.size(), fmt::join(patch.off, " "));
-        spdlog::error("    data in memory [{}]: {:02X}",
-            patch.off.size(), fmt::join(std::span { target, patch.off.size() }, " "));
 
         return false;
     }
