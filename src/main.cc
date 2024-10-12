@@ -116,9 +116,9 @@ auto DllMain(HINSTANCE module, DWORD reason, LPVOID) -> BOOL
 
         for (auto&& patch: *result)
         {
-            spdlog::info("Parsed {} on line {} at {} {}",
-                patch.on.empty() ? "check": "patch", patch.line,
-                patch.type_name(), patch.target_name());
+            spdlog::info("Parsed {} from '{}':{} at {} {}",
+                patch.on.empty() ? "check": "patch", patch.file,
+                patch.line, patch.type_name(), patch.target_name());
 
             if (!patch.off.empty())
                 spdlog::info("     expected data [{}]: {:02X}", patch.off.size(), fmt::join(patch.off, " "));
