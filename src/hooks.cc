@@ -1,3 +1,5 @@
+#include <ranges>
+
 #include "util.h"
 #include "hooks.h"
 #include "patch.h"
@@ -50,23 +52,68 @@ auto CALLBACK dll_notification(ULONG reason, PCLDR_DLL_NOTIFICATION_DATA data, P
         data->Loaded.BaseDllName->Length / sizeof(wchar_t)
     });
 
-    if (!detail::patches.contains(module))
+    auto const has_patches = std::ranges::any_of(detail::patches, [&] (auto&& patch)
+        { return patch.target == module; });
+
+    if (!has_patches)
         return;
 
     spdlog::info("Loaded target file '{}' at address 0x{:X}",
         module, std::bit_cast<std::uintptr_t>(address));
 
-    for (auto&& patch: detail::patches[module])
-        if (!patch::apply(address, patch))
+    auto applied = std::vector<patch_list::size_type> {};
+
+    for (auto i = 0; i < detail::patches.size(); ++i)
+    {
+        if (detail::patches[i].target != module)
+            continue;
+
+        if (!patch::apply(address, detail::patches[i]))
             break;
 
-    detail::patches.erase(module);
+        applied.emplace_back(i);
+    }
+
+    for (auto&& i: applied | std::views::reverse)
+        detail::patches.erase(detail::patches.begin() + i);
 
     if (!detail::patches.empty())
         return;
 
     spdlog::info("All patches applied, unloading from process...");
     CreateThread(nullptr, 0, unregister_and_unload, nullptr, 0, nullptr);
+}
+
+/**
+ * Attempts to apply patches if the target module is already loaded.
+ */
+auto apply_if_loaded(parser::patch& patch) -> std::optional<bool>
+{
+    if (patch.target == "-")
+        return patch::apply(nullptr, patch);
+
+    if (patch.target == "<host>")
+    {
+        auto const address = GetModuleHandle(nullptr);
+        return patch::apply(reinterpret_cast<std::uint8_t*>(address), patch);
+    }
+
+    if (auto const handle = GetModuleHandleA(patch.target.c_str()))
+    {
+        auto static seen = std::vector<decltype(patch.target)> {};
+
+        if (std::ranges::find(seen, patch.target) == seen.end())
+        {
+            spdlog::info("Target module '{}' resolved to address 0x{:X}",
+                patch.target, std::bit_cast<std::uintptr_t>(handle));
+
+            seen.push_back(patch.target);
+        }
+
+        return patch::apply(reinterpret_cast<std::uint8_t*>(handle), patch);
+    }
+
+    return std::nullopt;
 }
 
 /**
@@ -82,28 +129,23 @@ auto hooks::install(HMODULE module, patch_list&& patches) -> bool
     detail::patches = std::move(patches);
 
     // apply patches for any libraries that are already loaded
-    for (auto&& [module, patches]: detail::patches)
+    auto applied = std::vector<patch_list::size_type> {};
+
+    for (auto i = 0; i < detail::patches.size(); ++i)
     {
-        if (module == "-")
-        {
-            for (auto&& patch: patches)
-                if (!patch::apply(nullptr, patch))
-                    break;
+        auto const result = apply_if_loaded(detail::patches[i]);
 
-            detail::patches.erase(module);
-        }
-        else if (auto const base = GetModuleHandleA(module.c_str()))
-        {
-            spdlog::info("Target '{}' is already loaded at address 0x{:X}",
-                module, std::bit_cast<std::uintptr_t>(base));
+        if (!result.has_value())
+            continue; // not loaded yet
 
-            for (auto&& patch: patches)
-                if (!patch::apply(reinterpret_cast<std::uint8_t*>(base), patch))
-                    break;
+        if (!*result)
+            return false; // failed to apply
 
-            detail::patches.erase(module);
-        }
+        applied.emplace_back(i); // applied
     }
+
+    for (auto&& i: applied | std::views::reverse)
+        detail::patches.erase(detail::patches.begin() + i);
 
     // if everything was applied, unload now
     if (detail::patches.empty())

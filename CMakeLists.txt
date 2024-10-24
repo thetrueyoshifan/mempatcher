@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.29)
 
-project(mempatcher LANGUAGES CXX VERSION 0.2.0.0)
+project(mempatcher LANGUAGES CXX VERSION 0.2.1.0)
 
 include(cmake/get_cpm.cmake)
 include(cmake/GetGitRevisionDescription.cmake)

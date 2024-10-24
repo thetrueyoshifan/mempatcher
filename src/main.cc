@@ -126,7 +126,7 @@ auto DllMain(HINSTANCE module, DWORD reason, LPVOID) -> BOOL
             if (!patch.on.empty())
                 spdlog::info("  replacement data [{}]: {:02X}", patch.on.size(), fmt::join(patch.on, " "));
 
-            patches[patch.target].push_back(std::move(patch));
+            patches.push_back(std::move(patch));
         }
     }
 
