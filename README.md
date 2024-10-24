@@ -153,6 +153,12 @@ spice64.exe [...] -z mempatcher.dll --mempatch patch.mph
 launcher.exe [...] -B mempatcher.dll --mempatch patch.mph
 ```
 
+#### Segatools
+
+```
+inject(_x86/_x64).exe [...] -k mempatcher.dll [...] --mempatch patch.mph
+```
+
 #### Generic
 
 Use any method, such as [**proxyloader**](https://github.com/aixxe/proxyloader), to load `mempatcher.dll` into the process
