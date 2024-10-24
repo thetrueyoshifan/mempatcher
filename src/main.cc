@@ -61,6 +61,24 @@ auto get_directory_files(const std::filesystem::path& path)
 }
 
 /**
+ * Get the base filename of the host module.
+ *
+ * @return Host module filename.
+ */
+auto get_host_exe() -> std::string
+{
+    auto name = std::wstring(MAX_PATH, L'\0');
+    auto const size = GetModuleFileNameW(nullptr, name.data(), name.size());
+
+    if (size == 0)
+        return "<unknown>";
+
+    name.resize(size);
+
+    return std::filesystem::path { name }.filename().string();
+}
+
+/**
  * Main entrypoint: install hooks & patch any already loaded libraries.
  *
  * @param module Handle to this module.
@@ -79,8 +97,10 @@ auto DllMain(HINSTANCE module, DWORD reason, LPVOID) -> BOOL
     spdlog::default_logger()->flush_on(spdlog::level::info);
     spdlog::default_logger()->set_pattern("[%Y/%m/%d %H:%M:%S] %v");
 
-    spdlog::info("mempatcher (v{}) loaded at 0x{:X}", RC_FILEVERSION_STRING, std::bit_cast<std::uintptr_t>(module));
-    spdlog::info("Compiled at {} {} from {}@{}", __DATE__, __TIME__, GIT_BRANCH_NAME, GIT_COMMIT_HASH_SHORT);
+    spdlog::info("mempatcher (v{}) loaded in '{}' at 0x{:X}",
+        RC_FILEVERSION_STRING, get_host_exe(), std::bit_cast<std::uintptr_t>(module));
+    spdlog::info("Compiled at {} {} from {}@{}",
+        __DATE__, __TIME__, GIT_BRANCH_NAME, GIT_COMMIT_HASH_SHORT);
 
     auto const argv = util::get_argv();
     auto files = get_input_files(argv);
