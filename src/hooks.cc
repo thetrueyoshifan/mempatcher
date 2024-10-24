@@ -17,7 +17,7 @@ namespace mempatcher::hooks::detail
 /**
  * Unload module from process.
  */
-auto WINAPI unload(PVOID) -> DWORD
+auto WINAPI unload(PVOID = nullptr) -> DWORD
 {
     FreeLibraryAndExitThread(detail::module, EXIT_SUCCESS);
 }
@@ -30,10 +30,7 @@ auto WINAPI unregister_and_unload(PVOID) -> DWORD
     auto const result = detail::unregister_fn(detail::cookie);
 
     if (NT_SUCCESS(result))
-    {
-        spdlog::info("All patches applied, unloading from process...");
-        FreeLibraryAndExitThread(detail::module, EXIT_SUCCESS);
-    }
+        return unload();
 
     spdlog::error("Failed to unregister DLL notification callback (0x{:X})", result);
     return EXIT_FAILURE;
@@ -68,6 +65,7 @@ auto CALLBACK dll_notification(ULONG reason, PCLDR_DLL_NOTIFICATION_DATA data, P
     if (!detail::patches.empty())
         return;
 
+    spdlog::info("All patches applied, unloading from process...");
     CreateThread(nullptr, 0, unregister_and_unload, nullptr, 0, nullptr);
 }
 
