@@ -15,6 +15,14 @@ namespace mempatcher::hooks::detail
 }
 
 /**
+ * Unload module from process.
+ */
+auto WINAPI unload(PVOID) -> DWORD
+{
+    FreeLibraryAndExitThread(detail::module, EXIT_SUCCESS);
+}
+
+/**
  * Unregister loader notification and unload module from process.
  */
 auto WINAPI unregister_and_unload(PVOID) -> DWORD
@@ -103,7 +111,8 @@ auto hooks::install(HMODULE module, patch_list&& patches) -> bool
     if (detail::patches.empty())
     {
         spdlog::info("All patches applied, unloading from process...");
-        return false;
+        CreateThread(nullptr, 0, unload, nullptr, 0, nullptr);
+        return true;
     }
 
     // catch future libraries
