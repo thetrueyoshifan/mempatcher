@@ -81,23 +81,41 @@ auto resolve_address(std::uint8_t* base, const parser::patch& patch) -> std::uin
  */
 auto compare_data(std::uint8_t* target, const parser::patch& patch)
 {
+    if (std::memcmp(target, patch.off.data(), patch.off.size()) == 0)
+        return true;
+
+    if (!patch.on.empty() && std::memcmp(target, patch.on.data(), patch.on.size()) == 0)
+    {
+        spdlog::warn("Patch from '{}':{} at {} 0x{:X} has already been applied",
+            patch.file, patch.line, patch.type_name(), patch.address);
+
+        return true;
+    }
+
+    spdlog::error("Failed to validate data from '{}':{} at {} 0x{:X}",
+        patch.file, patch.line, patch.type_name(), patch.address);
+    spdlog::error("     expected data [{}]: {:02X}",
+        patch.off.size(), fmt::join(patch.off, " "));
+    spdlog::error("    data in memory [{}]: {:02X}",
+        patch.off.size(), fmt::join(std::span { target, patch.off.size() }, " "));
+
+    return false;
+}
+
+/**
+ * Compare patch data while handling SEH exceptions.
+ *
+ * @param target Pointer to the memory location.
+ * @param patch Patch containing the expected data.
+ * @return True if the data matches, false otherwise.
+ */
+auto try_compare_data(std::uint8_t* target, const parser::patch& patch)
+{
     if (patch.off.empty())
         return true;
 
     __try
-    {
-        if (std::memcmp(target, patch.off.data(), patch.off.size()) != 0)
-        {
-            spdlog::error("Failed to validate data from '{}':{} at {} 0x{:X}",
-                patch.file, patch.line, patch.type_name(), patch.address);
-            spdlog::error("     expected data [{}]: {:02X}",
-                patch.off.size(), fmt::join(patch.off, " "));
-            spdlog::error("    data in memory [{}]: {:02X}",
-                patch.off.size(), fmt::join(std::span { target, patch.off.size() }, " "));
-
-            return false;
-        }
-    }
+        { return compare_data(target, patch); }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
         spdlog::error("Failed to read data from '{}':{} at {} 0x{:X}",
@@ -105,8 +123,6 @@ auto compare_data(std::uint8_t* target, const parser::patch& patch)
 
         return false;
     }
-
-    return true;
 }
 
 /**
@@ -163,7 +179,7 @@ auto patch::apply(std::uint8_t* base, const parser::patch& patch) -> bool
     if (!address)
         return false;
 
-    if (!compare_data(address, patch))
+    if (!try_compare_data(address, patch))
         return false;
 
     if (patch.on.empty())
