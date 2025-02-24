@@ -58,7 +58,6 @@ auto util::resolve_dll_imports(std::string_view module, const std::vector<std::s
 
     if (!handle)
     {
-        spdlog::error("Failed to get module handle for '{}'", module);
         return {};
     }
 
@@ -71,7 +70,6 @@ auto util::resolve_dll_imports(std::string_view module, const std::vector<std::s
 
         if (!result[name])
         {
-            spdlog::error("Failed to resolve address for '{}' in '{}'", module, name);
             return {}; // return nothing instead of an incomplete result
         }
     }

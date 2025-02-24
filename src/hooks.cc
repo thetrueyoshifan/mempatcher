@@ -34,7 +34,6 @@ auto WINAPI unregister_and_unload(PVOID) -> DWORD
     if (NT_SUCCESS(result))
         return unload();
 
-    spdlog::error("Failed to unregister DLL notification callback (0x{:X})", result);
     return EXIT_FAILURE;
 }
 
@@ -58,9 +57,6 @@ auto CALLBACK dll_notification(ULONG reason, PCLDR_DLL_NOTIFICATION_DATA data, P
     if (!has_patches)
         return;
 
-    spdlog::info("Loaded target file '{}' at address 0x{:X}",
-        module, std::bit_cast<std::uintptr_t>(address));
-
     auto applied = std::vector<patch_list::size_type> {};
 
     for (auto i = 0; i < detail::patches.size(); ++i)
@@ -80,7 +76,6 @@ auto CALLBACK dll_notification(ULONG reason, PCLDR_DLL_NOTIFICATION_DATA data, P
     if (!detail::patches.empty())
         return;
 
-    spdlog::info("All patches applied, unloading from process...");
     CreateThread(nullptr, 0, unregister_and_unload, nullptr, 0, nullptr);
 }
 
@@ -104,9 +99,6 @@ auto apply_if_loaded(parser::patch& patch) -> std::optional<bool>
 
         if (std::ranges::find(seen, patch.target) == seen.end())
         {
-            spdlog::info("Target module '{}' resolved to address 0x{:X}",
-                patch.target, std::bit_cast<std::uintptr_t>(handle));
-
             seen.push_back(patch.target);
         }
 
@@ -150,7 +142,6 @@ auto hooks::install(HMODULE module, patch_list&& patches) -> bool
     // if everything was applied, unload now
     if (detail::patches.empty())
     {
-        spdlog::info("All patches applied, unloading from process...");
         CreateThread(nullptr, 0, unload, nullptr, 0, nullptr);
         return true;
     }
@@ -161,7 +152,6 @@ auto hooks::install(HMODULE module, patch_list&& patches) -> bool
 
     if (imports.empty()) [[unlikely]]
     {
-        spdlog::error("Failed to resolve required imports from 'ntdll.dll'");
         return false;
     }
 
@@ -172,9 +162,6 @@ auto hooks::install(HMODULE module, patch_list&& patches) -> bool
         (imports.at("LdrUnregisterDllNotification"));
 
     auto const result = register_fn(0, dll_notification, nullptr, &detail::cookie);
-
-    if (result < 0)
-        spdlog::error("Failed to register DLL notification callback (code: {:X})", result);
 
     return NT_SUCCESS(result);
 }

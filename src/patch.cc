@@ -60,9 +60,6 @@ auto resolve_address(std::uint8_t* base, const parser::patch& patch) -> std::uin
 
         if (!result)
         {
-            spdlog::error("Failed to convert {} from '{}':{} from 0x{:X} to RVA",
-                patch.type_name(), patch.file, patch.line, patch.address);
-
             return nullptr;
         }
 
@@ -86,18 +83,8 @@ auto compare_data(std::uint8_t* target, const parser::patch& patch)
 
     if (!patch.on.empty() && std::memcmp(target, patch.on.data(), patch.on.size()) == 0)
     {
-        spdlog::warn("Patch from '{}':{} at {} 0x{:X} has already been applied",
-            patch.file, patch.line, patch.type_name(), patch.address);
-
         return true;
     }
-
-    spdlog::error("Failed to validate data from '{}':{} at {} 0x{:X}",
-        patch.file, patch.line, patch.type_name(), patch.address);
-    spdlog::error("     expected data [{}]: {:02X}",
-        patch.off.size(), fmt::join(patch.off, " "));
-    spdlog::error("    data in memory [{}]: {:02X}",
-        patch.off.size(), fmt::join(std::span { target, patch.off.size() }, " "));
 
     return false;
 }
@@ -118,9 +105,6 @@ auto try_compare_data(std::uint8_t* target, const parser::patch& patch)
         { return compare_data(target, patch); }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
-        spdlog::error("Failed to read data from '{}':{} at {} 0x{:X}",
-            patch.file, patch.line, patch.type_name(), patch.address);
-
         return false;
     }
 }
@@ -138,9 +122,6 @@ auto write_data(std::uint8_t* target, const parser::patch& patch)
 
     if (!VirtualProtect(target, patch.on.size(), PAGE_EXECUTE_READWRITE, &old))
     {
-        spdlog::error("Failed to change memory protection for patch '{}':{} at {} 0x{:X}",
-            patch.file, patch.line, patch.type_name(), patch.address);
-
         return false;
     }
 
@@ -148,19 +129,8 @@ auto write_data(std::uint8_t* target, const parser::patch& patch)
 
     if (!VirtualProtect(target, patch.on.size(), old, &old))
     {
-        spdlog::error("Failed to restore memory protection for patch '{}':{} at {} 0x{:X}",
-            patch.file, patch.line, patch.type_name(), patch.address);
-
         return false;
     }
-
-    auto line = fmt::format("Applied patch from '{}':{} at {} {}",
-        patch.file, patch.line, patch.type_name(), patch.target_name());
-
-    if (patch.type != parser::addr_type::absolute)
-        line += fmt::format(" to 0x{:X}", std::bit_cast<std::uintptr_t>(target));
-
-    spdlog::info(line);
 
     return true;
 }
@@ -184,10 +154,6 @@ auto patch::apply(std::uint8_t* base, const parser::patch& patch) -> bool
 
     if (patch.on.empty())
     {
-        spdlog::info("Validated data from '{}':{} at {} {} from 0x{:X}",
-            patch.file, patch.line, patch.type_name(), patch.target_name(),
-            std::bit_cast<std::uintptr_t>(address));
-
         return true;
     }
 

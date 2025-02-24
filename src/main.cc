@@ -92,29 +92,13 @@ auto DllMain(HINSTANCE module, DWORD reason, LPVOID) -> BOOL
 
     DisableThreadLibraryCalls(module);
 
-    spdlog::default_logger()->sinks() =
-        { std::make_shared<spdlog::sinks::basic_file_sink_st>("mempatcher.log", true) };
-    spdlog::default_logger()->flush_on(spdlog::level::info);
-    spdlog::default_logger()->set_pattern("[%Y/%m/%d %H:%M:%S] %v");
-
-    spdlog::info("mempatcher (v{}) loaded in '{}' at 0x{:X}",
-        RC_FILEVERSION_STRING, get_host_exe(), std::bit_cast<std::uintptr_t>(module));
-    spdlog::info("Compiled at {} {} from {}@{}",
-        __DATE__, __TIME__, GIT_BRANCH_NAME, GIT_COMMIT_HASH_SHORT);
-
     auto const argv = util::get_argv();
     auto files = get_input_files(argv);
 
     std::ranges::move(get_directory_files("autopatch"), std::back_inserter(files));
 
-    if (argv.size() > 1)
-        spdlog::info("Command line arguments: {}", fmt::join(std::views::drop(argv, 1), " "));
-
     if (files.empty())
     {
-        spdlog::warn("No patch files could be found in the command line arguments");
-        spdlog::warn("Use one or more '--mempatch <file>' arguments to specify paths to patch files");
-
         return FALSE;
     }
 
@@ -122,30 +106,15 @@ auto DllMain(HINSTANCE module, DWORD reason, LPVOID) -> BOOL
 
     for (auto&& file: files)
     {
-        spdlog::info("Opening memory patch file '{}'...", file.string());
-
         auto result = parser::read_file(file);
 
         if (!result)
         {
-            spdlog::error("Parsing failed on line {}: {}",
-                result.error().line, make_error_code(result.error().ec).message());
-
             return FALSE;
         }
 
         for (auto&& patch: *result)
         {
-            spdlog::info("Parsed {} from '{}':{} at {} {}",
-                patch.on.empty() ? "check": "patch", patch.file,
-                patch.line, patch.type_name(), patch.target_name());
-
-            if (!patch.off.empty())
-                spdlog::info("     expected data [{}]: {:02X}", patch.off.size(), fmt::join(patch.off, " "));
-
-            if (!patch.on.empty())
-                spdlog::info("  replacement data [{}]: {:02X}", patch.on.size(), fmt::join(patch.on, " "));
-
             patches.push_back(std::move(patch));
         }
     }
